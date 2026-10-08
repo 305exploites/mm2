@@ -1,8 +1,7 @@
 -- ============================================================
 -- Silent Aim — clean minimal panel
 -- Dark red theme. Mobile-optimized.
--- Drag ONLY through the top strip.
--- Square toggle button, loadstring-safe.
+-- Drag ONLY through the top strip (top edge → divider under "SILENT AIM")
 -- ============================================================
 
 local Players          = game:GetService("Players")
@@ -11,10 +10,7 @@ local TweenService     = game:GetService("TweenService")
 local RunService       = game:GetService("RunService")
 
 local player    = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui", 10)
-if not playerGui then
-    playerGui = player:FindFirstChildOfClass("PlayerGui")
-end
+local playerGui = player:WaitForChild("PlayerGui")
 local camera    = workspace.CurrentCamera
 
 -- ============================================================
@@ -24,14 +20,11 @@ do
     local existing = playerGui:FindFirstChild("N3X_SilentAim")
     if existing then
         existing.Enabled = true
-        existing.DisplayOrder = 2147483647
+        existing.DisplayOrder = 999
         local mainFrame = existing:FindFirstChild("MainFrame")
         if mainFrame then mainFrame.Visible = true end
         local topBtn = existing:FindFirstChild("OpenClose")
-        if topBtn then
-            topBtn.Visible = true
-            topBtn.Parent = existing
-        end
+        if topBtn then topBtn.Visible = true end
         warn("[Silent Aim] GUI already loaded — keeping existing instance.")
         return
     end
@@ -44,6 +37,11 @@ local function keep(c) table.insert(connections, c); return c end
 -- DEVICE DETECTION
 -- ============================================================
 local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local isSmallScreen = false
+do
+    local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+    isSmallScreen = vp.X < 900 or vp.Y < 600
+end
 
 -- ============================================================
 -- THEME
@@ -83,15 +81,15 @@ local function stroke(o, color, thickness, transparency)
 end
 
 -- ============================================================
--- SCREEN GUI — top-most, on PlayerGui
+-- SCREEN GUI
 -- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "N3X_SilentAim"
 ScreenGui.Parent = playerGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = false          -- keep button below the top bar
-ScreenGui.DisplayOrder = 2147483647       -- absolute top
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999
 
 -- ============================================================
 -- FOV CIRCLE
@@ -135,9 +133,12 @@ end))
 -- ============================================================
 local PANEL_W, PANEL_H
 if isMobile then
-    local vp = camera and camera.ViewportSize or Vector2.new(800, 600)
+    local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 600)
     PANEL_W = math.clamp(vp.X * 0.78, 260, 340)
     PANEL_H = math.clamp(vp.Y * 0.55, 260, 380)
+elseif isSmallScreen then
+    PANEL_W = 300
+    PANEL_H = 330
 else
     PANEL_W = 310
     PANEL_H = 350
@@ -150,6 +151,7 @@ local LABEL_W     = isMobile and 108 or 118
 local SLIDER_W    = isMobile and 76  or 90
 local GAP         = 8
 
+-- Height of the draggable top strip (from very top of panel down to just past the divider)
 local DRAG_HANDLE_H = isMobile and 52 or 44
 
 -- ============================================================
@@ -177,7 +179,10 @@ innerStroke.Thickness = 1
 innerStroke.Transparency = 0.6
 innerStroke.Parent = Frame
 
--- Drag handle
+-- ============================================================
+-- DRAG HANDLE — invisible strip at the top of the panel
+-- Sits on top of the header area; only this captures drags.
+-- ============================================================
 local DragHandle = Instance.new("Frame")
 DragHandle.Name = "DragHandle"
 DragHandle.Parent = Frame
@@ -188,6 +193,9 @@ DragHandle.Size = UDim2.new(1, 0, 0, DRAG_HANDLE_H)
 DragHandle.ZIndex = 15
 DragHandle.Active = true
 
+-- ============================================================
+-- CONTENT HOLDER — offset down so the section text starts below the handle
+-- ============================================================
 local Content = Instance.new("Frame")
 Content.Parent = Frame
 Content.BackgroundTransparency = 1
@@ -229,6 +237,7 @@ local function Section(parent, text)
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.TextYAlignment = Enum.TextYAlignment.Center
     l.ZIndex = 4
+
     local s = Instance.new("UIStroke")
     s.Color = Color3.fromRGB(60, 22, 32)
     s.Thickness = 1
@@ -932,34 +941,33 @@ local function playShimmer()
 end
 
 -- ============================================================
--- OPEN / CLOSE BUTTON — square, top center
+-- OPEN / CLOSE BUTTON — top center of screen
 -- ============================================================
-local BTN_SIZE = isMobile and 46 or 40
+local BTN_SIZE = isMobile and 44 or 38
 
 local OpenCloseBtn = Instance.new("TextButton")
 OpenCloseBtn.Name = "OpenClose"
 OpenCloseBtn.Parent = ScreenGui
 OpenCloseBtn.AnchorPoint = Vector2.new(0.5, 0)
-OpenCloseBtn.Position = UDim2.new(0.5, 0, 0, isMobile and 22 or 14)
+OpenCloseBtn.Position = UDim2.new(0.5, 0, 0, isMobile and 14 or 10)
 OpenCloseBtn.Size = UDim2.new(0, BTN_SIZE, 0, BTN_SIZE)
 OpenCloseBtn.BackgroundColor3 = BG_PANEL
-OpenCloseBtn.BackgroundTransparency = 0
+OpenCloseBtn.BackgroundTransparency = 0.08
 OpenCloseBtn.BorderSizePixel = 0
 OpenCloseBtn.AutoButtonColor = false
 OpenCloseBtn.Font = Enum.Font.GothamBold
-OpenCloseBtn.Text = "X"
+OpenCloseBtn.Text = "×"
 OpenCloseBtn.TextColor3 = ACCENT
-OpenCloseBtn.TextSize = isMobile and 20 or 16
-OpenCloseBtn.ZIndex = 100
+OpenCloseBtn.TextSize = isMobile and 22 or 18
+OpenCloseBtn.ZIndex = 60
 OpenCloseBtn.Active = true
-OpenCloseBtn.Visible = true
-corner(OpenCloseBtn, 6)          -- rounded square, not a circle
-stroke(OpenCloseBtn, STROKE_HI, 1.5, 0.1)
+corner(OpenCloseBtn, 1000)
+stroke(OpenCloseBtn, STROKE_HI, 1, 0.15)
 
 local btnGlow = Instance.new("UIStroke")
 btnGlow.Color = ACCENT_D
-btnGlow.Thickness = 2
-btnGlow.Transparency = 0.7
+btnGlow.Thickness = 3
+btnGlow.Transparency = 0.75
 btnGlow.Parent = OpenCloseBtn
 
 OpenCloseBtn.MouseEnter:Connect(function()
@@ -985,7 +993,7 @@ local function setOpen(v)
         TweenService:Create(Frame, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, PANEL_W, 0, PANEL_H),
         }):Play()
-        OpenCloseBtn.Text = "X"
+        OpenCloseBtn.Text = "×"
     else
         playBloom()
         local t = TweenService:Create(Frame, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -996,7 +1004,7 @@ local function setOpen(v)
             Frame.Visible = false
             Frame.Size = UDim2.new(0, PANEL_W, 0, PANEL_H)
         end)
-        OpenCloseBtn.Text = "O"
+        OpenCloseBtn.Text = "◦"
     end
 end
 
@@ -1011,20 +1019,8 @@ keep(UserInputService.InputBegan:Connect(function(input, gp)
     end
 end))
 
--- Safety: ensure the button is on screen after everything initializes
-task.defer(function()
-    task.wait(0.1)
-    if OpenCloseBtn and OpenCloseBtn.Parent then
-        OpenCloseBtn.Visible = true
-        OpenCloseBtn.ZIndex = 100
-    end
-    if ScreenGui and ScreenGui.Parent ~= playerGui then
-        ScreenGui.Parent = playerGui
-    end
-end)
-
 -- ============================================================
--- DRAG — ONLY via the top strip
+-- DRAG — ONLY via the top strip (DragHandle)
 -- ============================================================
 local function pointInsideDragHandle(pos)
     if not Frame.Visible then return false end
